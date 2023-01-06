@@ -1,6 +1,6 @@
 {
   "name": "react-native-receive-sharing-intent",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "A React Native plugin that enables React Native apps to receive sharing photos, videos, text, urls or any other file types from another app.",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -63,7 +63,7 @@
     "prettier": "^2.0.5",
     "react": "16.13.1",
     "react-native": "0.63.4",
-    "react-native-builder-bob": "^",
+    "react-native-builder-bob": "^0.20.0",
     "release-it": "^14.2.2",
     "typescript": "^4.1.3"
   },
