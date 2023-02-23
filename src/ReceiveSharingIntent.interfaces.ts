@@ -8,6 +8,10 @@ export interface IReceiveSharingIntent {
 
 export interface IUtils {
   sortData(data: any): any;
+  getFileName: (file: string) => string;
+  getExtension: (fileName: string) => string;
+  getMimeType: (file: string) => string;
+  debounce: (fn: Function, time: number) => void;
 }
 
 export interface IReturnData {

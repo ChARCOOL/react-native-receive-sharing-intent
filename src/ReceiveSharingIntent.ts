@@ -1,13 +1,15 @@
+import {
+  AppState,
+  EmitterSubscription,
+  Linking,
+  NativeEventSubscription,
+  NativeModules,
+  Platform,
+} from 'react-native';
 import type {
   IReceiveSharingIntent,
   IUtils,
 } from './ReceiveSharingIntent.interfaces';
-import {
-  Platform,
-  Linking,
-  NativeModules,
-  EmitterSubscription,
-} from 'react-native';
 import Utils from './utils';
 
 const { ReceiveSharingIntent } = NativeModules;
@@ -16,13 +18,15 @@ class ReceiveSharingIntentModule implements IReceiveSharingIntent {
   private isIos: boolean;
   private utils: IUtils;
 
-  private subscription: EmitterSubscription | undefined;
+  private linkingSubscription: EmitterSubscription | undefined;
+  private appStateSubscription: NativeEventSubscription | undefined;
 
   constructor() {
     this.isIos = Platform.OS === 'ios';
     this.utils = new Utils();
 
-    this.subscription = undefined;
+    this.linkingSubscription = undefined;
+    this.appStateSubscription = undefined;
   }
 
   async getReceivedFiles(
@@ -32,21 +36,38 @@ class ReceiveSharingIntentModule implements IReceiveSharingIntent {
   ) {
     try {
       if (this.isIos) {
-        const URL = await Linking.getInitialURL();
+        if (!this.linkingSubscription) {
+          this.utils.debounce(async () => {
+            const URL = await Linking.getInitialURL();
+            if (!URL?.startsWith(`${protocol}://dataUrl`)) return;
 
-        if (URL?.startsWith(`${protocol}://dataUrl`)) {
-          await this.getFileNames(handler, errorHandler, URL);
+            await this.getFileNames(handler, errorHandler, URL);
+          }, 200);
         }
 
-        this.subscription = Linking.addEventListener('url', async (res) => {
-          const URL = res ? res.url : '';
+        this.linkingSubscription = Linking.addEventListener(
+          'url',
+          async (res) => {
+            this.utils.debounce(async () => {
+              const URL = res ? res.url : '';
+              if (!URL?.startsWith(`${protocol}://dataUrl`)) return;
 
-          if (URL?.startsWith(`${protocol}://dataUrl`)) {
-            await this.getFileNames(handler, errorHandler, URL);
+              await this.getFileNames(handler, errorHandler, URL);
+            }, 200);
           }
-        });
+        );
       } else {
-        await this.getFileNames(handler, errorHandler, '');
+        if (!this.appStateSubscription) {
+          await this.getFileNames(handler, errorHandler, '');
+        }
+
+        this.appStateSubscription = AppState.addEventListener(
+          'change',
+          async (status: string) => {
+            if (status !== 'active') return;
+            await this.getFileNames(handler, errorHandler, '');
+          }
+        );
       }
     } catch (error) {
       errorHandler(error);
@@ -56,9 +77,9 @@ class ReceiveSharingIntentModule implements IReceiveSharingIntent {
   clearReceivedFiles() {
     ReceiveSharingIntent.clearFileNames();
 
-    if (this.subscription) {
-      this.subscription.remove();
-      this.subscription = undefined;
+    if (this.linkingSubscription) {
+      this.linkingSubscription.remove();
+      this.linkingSubscription = undefined;
     }
   }
 
